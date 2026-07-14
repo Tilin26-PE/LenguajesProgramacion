@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Carrito — PedidoCore{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Tu Carrito</h2>
+
+{% if items %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body p-0">
+    <table class="table align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th class="ps-3">Producto</th>
+          <th>Precio unit.</th>
+          <th>Cantidad</th>
+          <th>Subtotal</th>
+          <th class="pe-3"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td class="ps-3">
+            <strong>{{ item.nombre }}</strong>
+            <span class="badge rounded-pill
+              {% if item.categoria == 'electronica' %}bg-primary{% else %}bg-success{% endif %}
+              ms-1" style="font-size:.65rem;">
+              {{ item.categoria }}
+            </span>
+            {% if item.cantidad > item.stock_disponible %}
+              <div class="text-danger small mt-1">
+                Solo quedan {{ item.stock_disponible }} unidades disponibles.
+              </div>
+            {% endif %}
+          </td>
+          <td>S/ {{ "%.2f"|format(item.precio) }}</td>
+          <td style="width: 160px;">
+            <form method="POST" action="/carrito/actualizar" class="d-flex gap-1">
+              <input type="hidden" name="producto" value="{{ item.id_producto }}">
+              <input type="number" name="cantidad" value="{{ item.cantidad }}"
+                     min="1" max="{{ item.stock_disponible }}"
+                     class="form-control form-control-sm" style="width: 70px;">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Actualizar</button>
+            </form>
+          </td>
+          <td class="fw-semibold">S/ {{ "%.2f"|format(item.subtotal_linea) }}</td>
+          <td class="pe-3">
+            <form method="POST" action="/carrito/eliminar/{{ item.id_producto }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light">
+          <td colspan="3" class="ps-3 text-end fw-bold">Total (antes de descuentos):</td>
+          <td class="fw-bold fs-5">S/ {{ "%.2f"|format(total) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="alert alert-info small">
+  El descuento final de cada producto se calcula al confirmar (motor <strong>Prolog</strong>),
+  y el total definitivo lo procesa el núcleo <strong>Scala</strong>.
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="POST" action="/carrito/confirmar">
+      <label class="form-label fw-semibold">Nombre del cliente</label>
+      <div class="d-flex gap-2">
+        <input type="text" name="cliente" class="form-control" placeholder="Nombre completo" required>
+        <button type="submit" class="btn btn-primary text-nowrap px-4">Confirmar Pedido</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+  <div class="text-muted" style="font-size:3.5rem;">&#128722;</div>
+  <p class="text-muted mt-2">Tu carrito esta vacio.</p>
+  <a href="/" class="btn btn-primary mt-1">Ver catálogo</a>
+</div>
+{% endif %}
+{% endblock %}

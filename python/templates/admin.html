@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin — PedidoCore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Panel de Administrador</h2>
+    <small class="text-muted">Pedidos de todos los usuarios (tabla <code>pedidos</code> en Supabase)</small>
+  </div>
+  <a href="/admin/productos" class="btn btn-primary">Gestionar Productos</a>
+</div>
+
+{% if pedidos %}
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th class="ps-3">#</th>
+          <th>Usuario</th>
+          <th>Cliente</th>
+          <th>Productos</th>
+          <th>Total Final</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pedidos %}
+        <tr>
+          <td class="ps-3 text-muted">{{ p.id }}</td>
+          <td class="small">{{ p.usuario_email or '—' }}</td>
+          <td>{{ p.cliente }}</td>
+          <td>{{ p.num_items }} producto(s)</td>
+          <td class="fw-semibold text-success">S/ {{ "%.2f"|format(p.total_final) }}</td>
+          <td><span class="badge bg-warning text-dark">{{ p.estado }}</span></td>
+          <td class="small text-muted">{{ p.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="pe-3">
+            <a href="/resultado/{{ p.id }}" class="btn btn-sm btn-outline-primary">Ver</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="text-muted mt-2 small">{{ pedidos | length }} pedido(s) en total.</p>
+
+{% else %}
+<div class="text-center py-5">
+  <div class="text-muted" style="font-size:3.5rem;">&#128203;</div>
+  <p class="text-muted mt-2">Todavia no hay pedidos registrados.</p>
+</div>
+{% endif %}
+{% endblock %}

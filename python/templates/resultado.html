@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ pedido.id }} — PedidoCore{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <div class="text-success" style="font-size:2.8rem; line-height:1;">&#10003;</div>
+      <div>
+        <h2 class="mb-0">Pedido #{{ pedido.id }} confirmado</h2>
+        <span class="text-muted">
+          Cliente: <strong>{{ pedido.cliente }}</strong>
+          &bull; Estado:
+          <span class="badge bg-warning text-dark">{{ pedido.estado }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-dark text-white fw-semibold">Productos del pedido</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Producto</th>
+              <th>Cant.</th>
+              <th>Precio unit.</th>
+              <th>Subtotal</th>
+              <th>Descuento</th>
+              <th class="pe-3">Total línea</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in pedido.items %}
+            <tr>
+              <td class="ps-3">
+                {{ item.nombre_producto }}
+                <span class="badge rounded-pill
+                  {% if item.categoria == 'electronica' %}bg-primary{% else %}bg-success{% endif %}
+                  ms-1" style="font-size:.65rem;">
+                  {{ item.categoria }}
+                </span>
+              </td>
+              <td>{{ item.cantidad }}</td>
+              <td>S/ {{ "%.2f"|format(item.precio_unitario) }}</td>
+              <td>S/ {{ "%.2f"|format(item.subtotal) }}</td>
+              <td>
+                {% if item.monto_descuento > 0 %}
+                  <span class="text-danger">
+                    &minus;S/ {{ "%.2f"|format(item.monto_descuento) }}
+                    ({{ (item.descuento_pct * 100) | int }}%)
+                  </span>
+                {% else %}
+                  <span class="text-muted">&mdash;</span>
+                {% endif %}
+              </td>
+              <td class="pe-3 fw-semibold">S/ {{ "%.2f"|format(item.total_linea) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light">
+              <td colspan="3" class="ps-3 text-end fw-bold">Subtotal:</td>
+              <td colspan="2">S/ {{ "%.2f"|format(pedido.subtotal) }}</td>
+              <td></td>
+            </tr>
+            <tr class="table-light">
+              <td colspan="3" class="ps-3 text-end fw-bold">Descuento total:</td>
+              <td colspan="2" class="text-danger">&minus;S/ {{ "%.2f"|format(pedido.monto_descuento) }}</td>
+              <td></td>
+            </tr>
+            <tr class="table-light border-top">
+              <td colspan="3" class="ps-3 text-end fw-bold fs-5">Total Final:</td>
+              <td colspan="2" class="fw-bold fs-5 text-success">S/ {{ "%.2f"|format(pedido.total_final) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/" class="btn btn-primary">+ Seguir comprando</a>
+      <a href="/historial" class="btn btn-outline-secondary">Ver Historial</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

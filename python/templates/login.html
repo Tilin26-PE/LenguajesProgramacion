@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesion — PedidoCore{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+
+    <h2 class="mb-1">Iniciar sesion</h2>
+    <p class="text-muted mb-4 small">Ingresa con tu cuenta para hacer pedidos.</p>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="POST" action="/login">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Correo</label>
+            <input type="email" name="email" class="form-control" required autofocus>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Contrasena</label>
+            <input type="password" name="password" class="form-control" required>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">Ingresar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <p class="text-center text-muted small mt-3">
+      No tienes cuenta? <a href="/registro">Registrate aqui</a>
+    </p>
+
+    <div class="alert alert-secondary small mt-4">
+      <strong>Cuentas de prueba:</strong><br>
+      Cliente: <code>cliente@pedidocore.com</code> / <code>cliente123</code><br>
+      Admin:   <code>admin@pedidocore.com</code> / <code>admin123</code>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

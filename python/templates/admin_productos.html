@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Productos — Admin — PedidoCore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Gestion de Productos</h2>
+    <small class="text-muted">Catalogo completo (tabla <code>productos</code> en Supabase)</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/admin" class="btn btn-outline-secondary">Volver</a>
+    <a href="/admin/productos/nuevo" class="btn btn-primary">+ Nuevo Producto</a>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th class="ps-3">ID</th>
+          <th>Producto</th>
+          <th>Categoria</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Estado</th>
+          <th class="pe-3"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+        <tr class="{% if not p.activo %}text-muted{% endif %}">
+          <td class="ps-3 small">{{ p.id }}</td>
+          <td><strong>{{ p.nombre }}</strong></td>
+          <td>
+            <span class="badge rounded-pill
+              {% if p.categoria == 'electronica' %}bg-primary{% else %}bg-success{% endif %}">
+              {{ p.categoria }}
+            </span>
+          </td>
+          <td>S/ {{ "%.2f"|format(p.precio) }}</td>
+          <td>
+            {% if p.stock > 0 %}{{ p.stock }}{% else %}
+              <span class="badge bg-danger">Sin stock</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.activo %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="pe-3 text-end">
+            <a href="/admin/productos/{{ p.id }}/editar" class="btn btn-sm btn-outline-primary">Editar</a>
+            {% if p.activo %}
+            <form method="POST" action="/admin/productos/{{ p.id }}/desactivar" class="d-inline">
+              <button class="btn btn-sm btn-outline-danger" type="submit"
+                      onclick="return confirm('¿Desactivar {{ p.nombre }}?');">Desactivar</button>
+            </form>
+            {% else %}
+            <form method="POST" action="/admin/productos/{{ p.id }}/activar" class="d-inline">
+              <button class="btn btn-sm btn-outline-success" type="submit">Activar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
