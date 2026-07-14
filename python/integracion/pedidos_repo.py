@@ -7,6 +7,16 @@ _CAMPOS_NUMERICOS_ITEM = (
 )
 _CAMPOS_NUMERICOS_PEDIDO = ('subtotal', 'monto_descuento', 'total_final')
 
+ESTADOS = ('pendiente', 'en_camino', 'entregado', 'cancelado')
+# A que estados se puede avanzar un pedido segun su estado actual (evita
+# saltos ilogicos como "entregado" -> "pendiente").
+_TRANSICIONES_VALIDAS = {
+    'pendiente':  {'en_camino', 'cancelado'},
+    'en_camino':  {'entregado'},
+    'entregado':  set(),
+    'cancelado':  set(),
+}
+
 
 def _normalizar(fila: dict, campos: tuple) -> dict:
     """psycopg2 devuelve NUMERIC como Decimal; lo pasamos a float para que
@@ -152,3 +162,82 @@ def listar_todos_los_pedidos() -> list:
     finally:
         conn.close()
     return [_normalizar(dict(f), _CAMPOS_NUMERICOS_PEDIDO) for f in filas]
+
+
+def cambiar_estado(pedido_id: int, nuevo_estado: str) -> dict:
+    """
+    Avanza el estado de un pedido (pendiente -> en_camino -> entregado),
+    validando que la transicion tenga sentido. Para cancelar se usa
+    cancelar_pedido(), que ademas repone el stock.
+    """
+    if nuevo_estado not in ESTADOS:
+        return {'ok': False, 'motivo': 'Estado invalido.'}
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT estado FROM pedidos WHERE id = %s FOR UPDATE', (pedido_id,))
+            pedido = cur.fetchone()
+            if not pedido:
+                conn.rollback()
+                return {'ok': False, 'motivo': 'Pedido no encontrado.'}
+
+            actual = pedido['estado']
+            if nuevo_estado not in _TRANSICIONES_VALIDAS.get(actual, set()):
+                conn.rollback()
+                return {'ok': False, 'motivo': f'No se puede pasar de "{actual}" a "{nuevo_estado}".'}
+
+            cur.execute('UPDATE pedidos SET estado = %s WHERE id = %s', (nuevo_estado, pedido_id))
+        conn.commit()
+        return {'ok': True}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def cancelar_pedido(pedido_id: int, usuario_id, es_admin: bool) -> dict:
+    """
+    Cancela un pedido y repone el stock de cada item, todo en una sola
+    transaccion. Solo se puede cancelar mientras esta 'pendiente' (una vez
+    que el admin lo marco 'en_camino' ya no, para evitar inconsistencias
+    con un envio que ya salio).
+
+    Un cliente solo puede cancelar sus propios pedidos; el admin puede
+    cancelar cualquiera.
+    """
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT * FROM pedidos WHERE id = %s FOR UPDATE', (pedido_id,))
+            pedido = cur.fetchone()
+            if not pedido:
+                conn.rollback()
+                return {'ok': False, 'motivo': 'Pedido no encontrado.'}
+
+            if not es_admin and pedido['usuario_id'] != usuario_id:
+                conn.rollback()
+                return {'ok': False, 'motivo': 'No tienes permiso para cancelar este pedido.'}
+
+            if pedido['estado'] != 'pendiente':
+                conn.rollback()
+                return {'ok': False, 'motivo': f'Ya no se puede cancelar (estado actual: {pedido["estado"]}).'}
+
+            cur.execute('SELECT * FROM pedido_items WHERE pedido_id = %s', (pedido_id,))
+            items = cur.fetchall()
+
+            for item in items:
+                cur.execute(
+                    'UPDATE productos SET stock = stock + %s WHERE id = %s',
+                    (item['cantidad'], item['id_producto'])
+                )
+
+            cur.execute("UPDATE pedidos SET estado = 'cancelado' WHERE id = %s", (pedido_id,))
+        conn.commit()
+        return {'ok': True}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

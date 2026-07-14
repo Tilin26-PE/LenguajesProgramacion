@@ -32,10 +32,26 @@
           <td>{{ p.cliente }}</td>
           <td>{{ p.num_items }} producto(s)</td>
           <td class="fw-semibold text-success">S/ {{ "%.2f"|format(p.total_final) }}</td>
-          <td><span class="badge bg-warning text-dark">{{ p.estado }}</span></td>
+          <td>
+            {% if p.estado == 'pendiente' %}
+              <span class="badge bg-warning text-dark">Pendiente</span>
+            {% elif p.estado == 'en_camino' %}
+              <span class="badge bg-info text-dark">En camino</span>
+            {% elif p.estado == 'entregado' %}
+              <span class="badge bg-success">Entregado</span>
+            {% else %}
+              <span class="badge bg-secondary">Cancelado</span>
+            {% endif %}
+          </td>
           <td class="small text-muted">{{ p.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
-          <td class="pe-3">
+          <td class="pe-3 text-end">
             <a href="/resultado/{{ p.id }}" class="btn btn-sm btn-outline-primary">Ver</a>
+            {% if p.estado == 'pendiente' %}
+            <form method="POST" action="/pedido/{{ p.id }}/cancelar" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('¿Cancelar este pedido?');">Cancelar</button>
+            </form>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

@@ -5,17 +5,44 @@
 <div class="row justify-content-center">
   <div class="col-md-8">
 
-    <div class="d-flex align-items-center mb-4 gap-3">
+    <div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
       <div class="text-success" style="font-size:2.8rem; line-height:1;">&#10003;</div>
       <div>
         <h2 class="mb-0">Pedido #{{ pedido.id }} confirmado</h2>
         <span class="text-muted">
           Cliente: <strong>{{ pedido.cliente }}</strong>
           &bull; Estado:
-          <span class="badge bg-warning text-dark">{{ pedido.estado }}</span>
+          {% if pedido.estado == 'pendiente' %}
+            <span class="badge bg-warning text-dark">Pendiente</span>
+          {% elif pedido.estado == 'en_camino' %}
+            <span class="badge bg-info text-dark">En camino</span>
+          {% elif pedido.estado == 'entregado' %}
+            <span class="badge bg-success">Entregado</span>
+          {% else %}
+            <span class="badge bg-secondary">Cancelado</span>
+          {% endif %}
         </span>
       </div>
     </div>
+
+    {% if session.get('rol') == 'admin' %}
+    <div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span class="small">Panel admin: avanzar estado del pedido</span>
+      <div class="d-flex gap-2">
+        {% if pedido.estado == 'pendiente' %}
+        <form method="POST" action="/admin/pedido/{{ pedido.id }}/estado">
+          <input type="hidden" name="estado" value="en_camino">
+          <button class="btn btn-sm btn-info" type="submit">Marcar "En camino"</button>
+        </form>
+        {% elif pedido.estado == 'en_camino' %}
+        <form method="POST" action="/admin/pedido/{{ pedido.id }}/estado">
+          <input type="hidden" name="estado" value="entregado">
+          <button class="btn btn-sm btn-success" type="submit">Marcar "Entregado"</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <div class="card shadow-sm mb-3">
       <div class="card-header bg-dark text-white fw-semibold">Productos del pedido</div>
@@ -83,6 +110,14 @@
     <div class="d-flex gap-2 flex-wrap">
       <a href="/" class="btn btn-primary">+ Seguir comprando</a>
       <a href="/historial" class="btn btn-outline-secondary">Ver Historial</a>
+      {% if pedido.estado == 'pendiente' %}
+      <form method="POST" action="/pedido/{{ pedido.id }}/cancelar" class="d-inline">
+        <button type="submit" class="btn btn-outline-danger"
+                onclick="return confirm('¿Cancelar este pedido? El stock se repondrá.');">
+          Cancelar pedido
+        </button>
+      </form>
+      {% endif %}
     </div>
 
   </div>

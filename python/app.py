@@ -8,7 +8,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from integracion.prolog_bridge import obtener_descuento
 from integracion.scala_bridge import procesar_pedido
 from integracion.usuarios_repo import crear_usuario, autenticar
-from integracion.pedidos_repo import confirmar_pedido, obtener_pedido, listar_pedidos_usuario, listar_todos_los_pedidos
+from integracion.pedidos_repo import (
+    confirmar_pedido, obtener_pedido, listar_pedidos_usuario, listar_todos_los_pedidos,
+    cambiar_estado, cancelar_pedido,
+)
 from integracion.productos_repo import (
     listar_productos, obtener_producto, crear_producto, actualizar_producto,
     desactivar_producto, reactivar_producto, seed_productos_demo,
@@ -236,6 +239,29 @@ def resultado(pedido_id):
 def historial():
     pedidos = listar_pedidos_usuario(session['usuario_id'])
     return render_template('historial.html', pedidos=pedidos)
+
+
+@app.route('/pedido/<int:pedido_id>/cancelar', methods=['POST'])
+@login_required
+def pedido_cancelar(pedido_id):
+    resultado = cancelar_pedido(pedido_id, session['usuario_id'], session.get('rol') == 'admin')
+    if resultado['ok']:
+        flash('Pedido cancelado. El stock fue repuesto.', 'info')
+    else:
+        flash(resultado['motivo'], 'danger')
+    return redirect(request.referrer or url_for('historial'))
+
+
+@app.route('/admin/pedido/<int:pedido_id>/estado', methods=['POST'])
+@admin_required
+def pedido_cambiar_estado(pedido_id):
+    nuevo_estado = request.form.get('estado', '').strip()
+    resultado = cambiar_estado(pedido_id, nuevo_estado)
+    if resultado['ok']:
+        flash(f'Pedido #{pedido_id} actualizado a "{nuevo_estado}".', 'success')
+    else:
+        flash(resultado['motivo'], 'danger')
+    return redirect(request.referrer or url_for('admin_panel'))
 
 
 # ---------- Panel de administrador ----------
