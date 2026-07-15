@@ -5,9 +5,16 @@ import glob as _glob
 
 _BASE      = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _SCALA_DIR = os.path.join(_BASE, 'scala', 'pedidocore')
-_JAR       = os.path.join(_SCALA_DIR, 'target', 'scala-2.13',
-                          'pedidocore_2.13-0.1.0-SNAPSHOT.jar')
 _SEP       = ';' if sys.platform == 'win32' else ':'
+
+# JAR autocontenido (generado con `sbt assembly`, incluye scala-library):
+# este es el que se usa en produccion (Render/Docker) y es el mas simple.
+_ASSEMBLY_JAR = os.path.join(_SCALA_DIR, 'target', 'scala-2.13', 'pedidocore-assembly.jar')
+
+# JAR plano (generado con `sbt package`, sin scala-library incluida):
+# se deja como respaldo para desarrollo local si todavia no se corrio assembly.
+_PLAIN_JAR = os.path.join(_SCALA_DIR, 'target', 'scala-2.13',
+                          'pedidocore_2.13-0.1.0-SNAPSHOT.jar')
 
 # Busca java.exe en carpetas de instalación comunes de Windows
 # (no depende de PATH, que a veces no está disponible al ejecutar .bat)
@@ -25,7 +32,8 @@ _JAVA_WIN_GLOBS = [
 
 
 def _java_exe() -> str:
-    """Localiza java.exe: primero JAVA_HOME, luego rutas conocidas, luego PATH."""
+    """Localiza java: en Linux/Render usa el 'java' del PATH (instalado via
+    apt en el Dockerfile); en Windows busca en JAVA_HOME y rutas conocidas."""
     if sys.platform == 'win32':
         jh = os.environ.get('JAVA_HOME', '')
         if jh:
@@ -40,21 +48,17 @@ def _java_exe() -> str:
 
 
 def _find_scala_lib() -> str:
-    """Localiza scala-library-2.13.x.jar en el proyecto o en cachés de sbt/coursier."""
+    """Solo se usa como respaldo con el jar plano (sin assembly)."""
     home = os.path.expanduser('~')
     patrones = [
-        # Dentro del propio proyecto (bg-jobs generados al compilar con sbt)
         os.path.join(_SCALA_DIR, 'target', 'bg-jobs', '*', 'target', '*',
                      'scala-library-2.13.*.jar'),
-        # Caché de Coursier en Windows (%LOCALAPPDATA%\Coursier\cache)
         os.path.join(home, 'AppData', 'Local', 'Coursier', 'cache', 'v1',
                      'https', 'repo1.maven.org', 'maven2', 'org', 'scala-lang',
                      'scala-library', '2.13.*', 'scala-library-2.13.*.jar'),
-        # Caché de Coursier en Linux/Mac
         os.path.join(home, '.cache', 'coursier', 'v1',
                      'https', 'repo1.maven.org', 'maven2', 'org', 'scala-lang',
                      'scala-library', '2.13.*', 'scala-library-2.13.*.jar'),
-        # Caché de ivy2
         os.path.join(home, '.ivy2', 'cache', 'org.scala-lang', 'scala-library',
                      'jars', 'scala-library-2.13.*.jar'),
     ]
@@ -65,24 +69,33 @@ def _find_scala_lib() -> str:
     return ''
 
 
+def _construir_comando(java: str, args: list) -> list | None:
+    """Arma el comando java segun cual jar este disponible."""
+    if os.path.isfile(_ASSEMBLY_JAR):
+        return [java, '-jar', _ASSEMBLY_JAR, *args]
+
+    if os.path.isfile(_PLAIN_JAR):
+        scala_lib = _find_scala_lib()
+        classpath = f'{_PLAIN_JAR}{_SEP}{scala_lib}' if scala_lib else _PLAIN_JAR
+        return [java, '-cp', classpath, 'pedidocore.Main', *args]
+
+    return None
+
+
 def procesar_pedido(id_producto: str, nombre: str, precio: float,
                     cantidad: int, stock: int, descuento: float) -> str:
     """
-    Ejecuta el JAR Scala compilado con java -cp.
+    Ejecuta el JAR Scala compilado.
     Devuelve la linea de resultado: OK|...|... o ERROR|...
     """
-    if not os.path.isfile(_JAR):
-        return 'ERROR|JAR de Scala no encontrado. Ejecuta "sbt package" en scala/pedidocore'
+    args = [id_producto, nombre, str(precio), str(cantidad), str(stock), str(descuento)]
+    java = _java_exe()
+    cmd  = _construir_comando(java, args)
 
-    java     = _java_exe()
-    scala_lib = _find_scala_lib()
-    classpath = f'{_JAR}{_SEP}{scala_lib}' if scala_lib else _JAR
+    if cmd is None:
+        return ('ERROR|JAR de Scala no encontrado. Ejecuta "sbt assembly" '
+                '(o "sbt package") en scala/pedidocore')
 
-    cmd = [
-        java, '-cp', classpath, 'pedidocore.Main',
-        id_producto, nombre,
-        str(precio), str(cantidad), str(stock), str(descuento),
-    ]
     resultado = subprocess.run(
         cmd,
         capture_output=True,
@@ -96,8 +109,5 @@ def procesar_pedido(id_producto: str, nombre: str, precio: float,
             return linea
 
     # Diagnóstico: mostrar qué imprimió Java para facilitar depuración
-    scala_lib_info = scala_lib if scala_lib else 'NO ENCONTRADO'
-    stderr_info    = resultado.stderr.strip()[:400] if resultado.stderr.strip() else '(vacío)'
-    return (f'ERROR|DIAGNOSTICO: java={java} | '
-            f'scala_lib={scala_lib_info} | '
-            f'stderr={stderr_info}')
+    stderr_info = resultado.stderr.strip()[:400] if resultado.stderr.strip() else '(vacío)'
+    return f'ERROR|DIAGNOSTICO: java={java} | cmd={" ".join(cmd)} | stderr={stderr_info}'
