@@ -18,7 +18,7 @@ FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         swi-prolog \
-        openjdk-17-jre-headless \
+        openjdk-21-jre-headless \
         libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
